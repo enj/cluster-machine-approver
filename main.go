@@ -23,11 +23,8 @@ import (
 
 	"github.com/golang/glog"
 
-	//"sigs.k8s.io/controller-runtime/pkg/client/config"
-
-	csrclient "k8s.io/client-go/util/certificate/csr"
 	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -35,6 +32,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+	csrclient "k8s.io/client-go/util/certificate/csr"
 	"k8s.io/client-go/util/workqueue"
 
 	mapiclient "github.com/openshift/cluster-api/pkg/client/clientset_generated/clientset"
@@ -114,31 +112,21 @@ func (c *Controller) handleNewCSR(key string) error {
 		return nil
 	}
 
-	approvalMsg := "This CSR was approved by the Node CSR Approver"
-	machineList, err := c.machineClient.MachineV1beta1().Machines(machineAPINamespace).List(metav1.ListOptions{})
-	if err == nil {
-		err := authorizeCSR(machineList, csr, parsedCSR)
-		if err != nil {
-			// Don't deny since it might be someone else's CSR
-			glog.Infof("CSR %s not authorized: %v", csr.GetName(), err)
-			return err
-		}
-	}
+	machines, err := c.machineClient.MachineV1beta1().Machines(machineAPINamespace).List(metav1.ListOptions{})
 	if err != nil {
-		glog.Infof("machine api not available: %v", err)
-		// Validate the CSR for the bootstrapping phase without a SAN check.
-		_, err := validateCSRContents(csr, parsedCSR)
-		if err != nil {
-			glog.Infof("CSR %s not valid: %v", csr.GetName(), err)
-			return err
-		}
-		approvalMsg += " (no SAN validation)"
+		return fmt.Errorf("failed to list machines: %v", err)
+	}
+
+	if err := authorizeCSR(machines.Items, c.clientset.CoreV1().Nodes(), csr, parsedCSR); err != nil {
+		// Don't deny since it might be someone else's CSR
+		glog.Infof("CSR %s not authorized: %v", csr.GetName(), err)
+		return err
 	}
 
 	csr.Status.Conditions = append(csr.Status.Conditions, certificatesv1beta1.CertificateSigningRequestCondition{
 		Type:           certificatesv1beta1.CertificateApproved,
 		Reason:         "NodeCSRApprove",
-		Message:        approvalMsg,
+		Message:        "This CSR was approved by the Node CSR Approver",
 		LastUpdateTime: metav1.Now(),
 	})
 

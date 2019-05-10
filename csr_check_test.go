@@ -3,10 +3,10 @@ package main
 import (
 	"testing"
 
+	capiclient "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
 	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/certificate/csr"
-	capiclient "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
 )
 
 /*
@@ -174,37 +174,35 @@ cD0UL3P0hRdXiCerOM6zPJvjja7jAka9UogHsG+23e96hyw/c/NmQt2dsgNjTern
 
 func TestAuthorizeCSR(t *testing.T) {
 	tests := map[string]struct {
-		machineList *capiclient.MachineList
-		request     *certificatesv1beta1.CertificateSigningRequest
-		csr         string
-		expected    bool
+		machines []capiclient.Machine
+		request  *certificatesv1beta1.CertificateSigningRequest
+		csr      string
+		expected bool
 	}{
 		"ok": {
 			expected: true,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -228,30 +226,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"no-node-prefix": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -275,30 +271,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"only-node-prefix": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -322,11 +316,9 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"no-machine-status-ref": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{},
-					},
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{},
 				},
 			},
 			request: &certificatesv1beta1.CertificateSigningRequest{
@@ -347,9 +339,7 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"no-machine-status": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: nil,
-			},
+			machines: nil,
 			request: &certificatesv1beta1.CertificateSigningRequest{
 				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
 					Usages: []certificatesv1beta1.KeyUsage{
@@ -368,30 +358,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"missing-groups-1": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -414,30 +402,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"missing-groups-2": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -460,30 +446,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"extra-group": {
 			expected: true,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -508,30 +492,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"wrong-group": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -555,30 +537,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"usages-missing": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -601,30 +581,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"usages-missing-1": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -647,30 +625,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"usage-missing-2": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -693,30 +669,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"usage-extra": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -741,30 +715,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"csr-cn": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -788,30 +760,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"csr-cn-2": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -835,30 +805,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"csr-no-o": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -882,30 +850,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"csr-extra-addr": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -929,30 +895,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"csr-san-ip-mismatch": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.2",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node1",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.2",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node1",
 							},
 						},
 					},
@@ -976,30 +940,28 @@ func TestAuthorizeCSR(t *testing.T) {
 		},
 		"csr-san-dns-mismatch": {
 			expected: false,
-			machineList: &capiclient.MachineList{
-				Items: []capiclient.Machine{
-					{
-						Status: capiclient.MachineStatus{
-							NodeRef: &corev1.ObjectReference{
-								Name: "test",
+			machines: []capiclient.Machine{
+				{
+					Status: capiclient.MachineStatus{
+						NodeRef: &corev1.ObjectReference{
+							Name: "test",
+						},
+						Addresses: []corev1.NodeAddress{
+							{
+								Type:    corev1.NodeInternalIP,
+								Address: "127.0.0.1",
 							},
-							Addresses: []corev1.NodeAddress{
-								{
-									Type:    corev1.NodeInternalIP,
-									Address: "127.0.0.1",
-								},
-								{
-									Type:    corev1.NodeExternalIP,
-									Address: "10.0.0.1",
-								},
-								{
-									Type:    corev1.NodeInternalDNS,
-									Address: "node1.local",
-								},
-								{
-									Type:    corev1.NodeExternalDNS,
-									Address: "node2",
-								},
+							{
+								Type:    corev1.NodeExternalIP,
+								Address: "10.0.0.1",
+							},
+							{
+								Type:    corev1.NodeInternalDNS,
+								Address: "node1.local",
+							},
+							{
+								Type:    corev1.NodeExternalDNS,
+								Address: "node2",
 							},
 						},
 					},
@@ -1024,16 +986,18 @@ func TestAuthorizeCSR(t *testing.T) {
 	}
 
 	for name, tc := range tests {
-		parsedCSR, err := csr.ParseCSR(&certificatesv1beta1.CertificateSigningRequest{
-			Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-				Request: []byte(tc.csr),
-			},
+		t.Run(name, func(t *testing.T) {
+			parsedCSR, err := csr.ParseCSR(&certificatesv1beta1.CertificateSigningRequest{
+				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+					Request: []byte(tc.csr),
+				},
+			})
+			if err != nil {
+				t.Fatalf("%s: error parsing test input csr %v", name, err)
+			}
+			if result := authorizeCSR(tc.machines, nil, tc.request, parsedCSR); (result == nil) != tc.expected {
+				t.Fatalf("%s: expected %v, got %v", name, tc.expected, result)
+			}
 		})
-		if err != nil {
-			t.Fatalf("%s: error parsing test input csr %v", name, err)
-		}
-		if result := authorizeCSR(tc.machineList, tc.request, parsedCSR); result != tc.expected {
-			t.Fatalf("%s: expected %v, got %v", name, tc.expected, result)
-		}
 	}
 }
