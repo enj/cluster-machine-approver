@@ -1050,11 +1050,8 @@ func Test_authorizeCSR(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parsedCSR, err := csr.ParseCSR(&certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Request: []byte(tt.args.csr),
-				},
-			})
+			tt.args.req.Spec.Request = []byte(tt.args.csr)
+			parsedCSR, err := csr.ParseCSR(tt.args.req)
 			if err != nil {
 				t.Fatal(err)
 			}
