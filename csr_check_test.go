@@ -1067,5 +1067,9 @@ func errString(err error) string {
 	if err == nil {
 		return ""
 	}
-	return err.Error()
+	errStr := err.Error()
+	if len(errStr) == 0 {
+		panic("invalid error")
+	}
+	return errStr
 }
