@@ -92,7 +92,7 @@ func (c *Controller) handleNewCSR(key string) error {
 
 	if !exists {
 		// Below we will warm up our cache with a CSR, so that we will see a delete for one csr
-		glog.Infof("CSR %s does not exist anymore\n", key)
+		glog.Infof("CSR %s does not exist anymore", key)
 		return nil
 	}
 
@@ -100,7 +100,7 @@ func (c *Controller) handleNewCSR(key string) error {
 	csr := obj.(*certificatesv1beta1.CertificateSigningRequest).DeepCopy()
 	// Note that you also have to check the uid if you have a local controlled resource, which
 	// is dependent on the actual instance, to detect that a CSR was recreated with the same name
-	glog.Infof("CSR %s added\n", csr.GetName())
+	glog.Infof("CSR %s added", csr.Name)
 
 	var alreadyApproved bool
 	for _, c := range csr.Status.Conditions {
@@ -110,7 +110,7 @@ func (c *Controller) handleNewCSR(key string) error {
 		}
 	}
 	if alreadyApproved {
-		glog.Infof("CSR %s is already approved\n", csr.GetName())
+		glog.Infof("CSR %s is already approved", csr.Name)
 		return nil
 	}
 
@@ -127,7 +127,7 @@ func (c *Controller) handleNewCSR(key string) error {
 
 	if err := authorizeCSR(machines.Items, c.nodes, csr, parsedCSR); err != nil {
 		// Don't deny since it might be someone else's CSR
-		glog.Infof("CSR %s not authorized: %v", csr.GetName(), err)
+		glog.Infof("CSR %s not authorized: %v", csr.Name, err)
 		return err
 	}
 
@@ -142,7 +142,7 @@ func (c *Controller) handleNewCSR(key string) error {
 		return err
 	}
 
-	glog.Infof("CSR %s approved\n", csr.GetName())
+	glog.Infof("CSR %s approved", csr.Name)
 
 	return nil
 }
