@@ -30,31 +30,38 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	certificatesv1beta1client "k8s.io/client-go/kubernetes/typed/certificates/v1beta1"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	csrclient "k8s.io/client-go/util/certificate/csr"
 	"k8s.io/client-go/util/workqueue"
 
 	mapiclient "github.com/openshift/cluster-api/pkg/client/clientset_generated/clientset"
+	machinev1beta1client "github.com/openshift/cluster-api/pkg/client/clientset_generated/clientset/typed/machine/v1beta1"
 )
 
 const machineAPINamespace = "openshift-machine-api"
 
 type Controller struct {
-	clientset     *kubernetes.Clientset
-	machineClient *mapiclient.Clientset
-	indexer       cache.Indexer
-	queue         workqueue.RateLimitingInterface
-	informer      cache.Controller
+	csrs     certificatesv1beta1client.CertificateSigningRequestInterface
+	nodes    corev1client.NodeInterface
+	machines machinev1beta1client.MachineInterface
+
+	indexer  cache.Indexer
+	queue    workqueue.RateLimitingInterface
+	informer cache.Controller
 }
 
 func NewController(clientset *kubernetes.Clientset, machineClientset *mapiclient.Clientset, queue workqueue.RateLimitingInterface, indexer cache.Indexer, informer cache.Controller) *Controller {
 	return &Controller{
-		clientset:     clientset,
-		machineClient: machineClientset,
-		informer:      informer,
-		indexer:       indexer,
-		queue:         queue,
+		csrs:     clientset.CertificatesV1beta1().CertificateSigningRequests(),
+		nodes:    clientset.CoreV1().Nodes(),
+		machines: machineClientset.MachineV1beta1().Machines(machineAPINamespace),
+
+		indexer:  indexer,
+		queue:    queue,
+		informer: informer,
 	}
 }
 
@@ -89,6 +96,7 @@ func (c *Controller) handleNewCSR(key string) error {
 		return nil
 	}
 
+	// do not mutate informer cache
 	csr := obj.(*certificatesv1beta1.CertificateSigningRequest).DeepCopy()
 	// Note that you also have to check the uid if you have a local controlled resource, which
 	// is dependent on the actual instance, to detect that a CSR was recreated with the same name
@@ -112,12 +120,12 @@ func (c *Controller) handleNewCSR(key string) error {
 		return nil
 	}
 
-	machines, err := c.machineClient.MachineV1beta1().Machines(machineAPINamespace).List(metav1.ListOptions{})
+	machines, err := c.machines.List(metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to list machines: %v", err)
 	}
 
-	if err := authorizeCSR(machines.Items, c.clientset.CoreV1().Nodes(), csr, parsedCSR); err != nil {
+	if err := authorizeCSR(machines.Items, c.nodes, csr, parsedCSR); err != nil {
 		// Don't deny since it might be someone else's CSR
 		glog.Infof("CSR %s not authorized: %v", csr.GetName(), err)
 		return err
@@ -130,7 +138,7 @@ func (c *Controller) handleNewCSR(key string) error {
 		LastUpdateTime: metav1.Now(),
 	})
 
-	if _, err := c.clientset.CertificatesV1beta1().CertificateSigningRequests().UpdateApproval(csr); err != nil {
+	if _, err := c.csrs.UpdateApproval(csr); err != nil {
 		return err
 	}
 
