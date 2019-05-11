@@ -3,10 +3,12 @@ package main
 import (
 	"testing"
 
-	capiclient "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
 	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/certificate/csr"
+
+	machinev1beta1 "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
 )
 
 /*
@@ -30,7 +32,7 @@ import (
   $ cfssl genkey test_csr.json | cfssljson -bare certificate
 */
 
-var (
+const (
 	goodCSR = `
 Certificate Request:
     Data:
@@ -172,832 +174,901 @@ cD0UL3P0hRdXiCerOM6zPJvjja7jAka9UogHsG+23e96hyw/c/NmQt2dsgNjTern
 `
 )
 
-func TestAuthorizeCSR(t *testing.T) {
-	tests := map[string]struct {
-		machines []capiclient.Machine
-		request  *certificatesv1beta1.CertificateSigningRequest
+func Test_authorizeCSR(t *testing.T) {
+	type args struct {
+		machines []machinev1beta1.Machine
+		nodes    corev1client.NodeInterface
+		req      *certificatesv1beta1.CertificateSigningRequest
 		csr      string
-		expected bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr string
 	}{
-		"ok": {
-			expected: true,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "ok",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
 					},
 				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "",
 		},
-		"no-node-prefix": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "no-node-prefix",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
 					},
 				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "Doesn't match expected prefix",
 		},
-		"only-node-prefix": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "only-node-prefix",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
 					},
 				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "Empty name",
 		},
-		"no-machine-status-ref": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{},
-				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+		{
+			name: "no-machine-status-ref",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{},
 					},
 				},
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
+					},
+				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "No target machine",
 		},
-		"no-machine-status": {
-			expected: false,
-			machines: nil,
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+		{
+			name: "no-machine-status",
+			args: args{
+				machines: nil,
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
 					},
 				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "Invalid request",
 		},
-		"missing-groups-1": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "missing-groups-1",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:nodes",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:nodes",
+						},
 					},
 				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "Too few groups",
 		},
-		"missing-groups-2": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "missing-groups-2",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+						},
 					},
 				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "Too few groups",
 		},
-		"extra-group": {
-			expected: true,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "extra-group",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
-						"foo-bar",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+							"foo-bar",
+						},
 					},
 				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "",
 		},
-		"wrong-group": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "wrong-group",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:foo-bar",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:foo-bar",
+						},
 					},
 				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "Not in system:authenticated",
 		},
-		"usages-missing": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "usages-missing",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
 					},
 				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "Too few usages",
 		},
-		"usages-missing-1": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "usages-missing-1",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
 					},
 				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "Too few usages",
 		},
-		"usage-missing-2": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "usage-missing-2",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
 					},
 				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "Too few usages",
 		},
-		"usage-extra": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "usage-extra",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-						certificatesv1beta1.UsageSigning,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+							certificatesv1beta1.UsageSigning,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
 					},
 				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "Too few usages",
 		},
-		"csr-cn": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "csr-cn",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
 					},
 				},
+				csr: otherName,
 			},
-			csr: otherName,
+			wantErr: "Mismatched CommonName system:node:foobar != system:node:test",
 		},
-		"csr-cn-2": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "csr-cn-2",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
 					},
 				},
+				csr: noNamePrefix,
 			},
-			csr: noNamePrefix,
+			wantErr: "Mismatched CommonName test != system:node:test",
 		},
-		"csr-no-o": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "csr-no-o",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
 					},
 				},
+				csr: noGroup,
 			},
-			csr: noGroup,
+			wantErr: "Organization doesn't include system:nodes",
 		},
-		"csr-extra-addr": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "csr-extra-addr",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
 					},
 				},
+				csr: extraAddr,
 			},
-			csr: extraAddr,
+			wantErr: "IP address '99.0.1.1' not in machine addresses: 127.0.0.1 10.0.0.1",
 		},
-		"csr-san-ip-mismatch": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "csr-san-ip-mismatch",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.2",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node1",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.2",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node1",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
 					},
 				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "IP address '10.0.0.1' not in machine addresses: 127.0.0.1 10.0.0.2",
 		},
-		"csr-san-dns-mismatch": {
-			expected: false,
-			machines: []capiclient.Machine{
-				{
-					Status: capiclient.MachineStatus{
-						NodeRef: &corev1.ObjectReference{
-							Name: "test",
-						},
-						Addresses: []corev1.NodeAddress{
-							{
-								Type:    corev1.NodeInternalIP,
-								Address: "127.0.0.1",
+		{
+			name: "csr-san-dns-mismatch",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						Status: machinev1beta1.MachineStatus{
+							NodeRef: &corev1.ObjectReference{
+								Name: "test",
 							},
-							{
-								Type:    corev1.NodeExternalIP,
-								Address: "10.0.0.1",
-							},
-							{
-								Type:    corev1.NodeInternalDNS,
-								Address: "node1.local",
-							},
-							{
-								Type:    corev1.NodeExternalDNS,
-								Address: "node2",
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "127.0.0.1",
+								},
+								{
+									Type:    corev1.NodeExternalIP,
+									Address: "10.0.0.1",
+								},
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "node1.local",
+								},
+								{
+									Type:    corev1.NodeExternalDNS,
+									Address: "node2",
+								},
 							},
 						},
 					},
 				},
-			},
-			request: &certificatesv1beta1.CertificateSigningRequest{
-				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Usages: []certificatesv1beta1.KeyUsage{
-						certificatesv1beta1.UsageDigitalSignature,
-						certificatesv1beta1.UsageKeyEncipherment,
-						certificatesv1beta1.UsageServerAuth,
-					},
-					Username: "system:node:test",
-					Groups: []string{
-						"system:authenticated",
-						"system:nodes",
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:node:test",
+						Groups: []string{
+							"system:authenticated",
+							"system:nodes",
+						},
 					},
 				},
+				csr: goodCSR,
 			},
-			csr: goodCSR,
+			wantErr: "DNS name 'node1' not in machine names: node1.local node2",
 		},
 	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			parsedCSR, err := csr.ParseCSR(&certificatesv1beta1.CertificateSigningRequest{
 				Spec: certificatesv1beta1.CertificateSigningRequestSpec{
-					Request: []byte(tc.csr),
+					Request: []byte(tt.args.csr),
 				},
 			})
 			if err != nil {
-				t.Fatalf("%s: error parsing test input csr %v", name, err)
+				t.Fatal(err)
 			}
-			if result := authorizeCSR(tc.machines, nil, tc.request, parsedCSR); (result == nil) != tc.expected {
-				t.Fatalf("%s: expected %v, got %v", name, tc.expected, result)
+
+			if err := authorizeCSR(tt.args.machines, tt.args.nodes, tt.args.req, parsedCSR); errString(err) != tt.wantErr {
+				t.Errorf("authorizeCSR() error = %v, wantErr %s", err, tt.wantErr)
 			}
 		})
 	}
+}
+
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }

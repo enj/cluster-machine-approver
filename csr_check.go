@@ -187,6 +187,9 @@ func authorizeNodeClientCSR(machines []v1beta1.Machine, nodes corev1client.NodeI
 	}
 
 	nodeName := strings.TrimPrefix(csr.Subject.CommonName, nodeUserPrefix)
+	if len(nodeName) == 0 {
+		return fmt.Errorf("CSR %s has empty node name", req.Name)
+	}
 
 	_, err := nodes.Get(nodeName, metav1.GetOptions{})
 	switch {
