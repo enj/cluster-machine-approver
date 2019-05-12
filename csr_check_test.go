@@ -5,6 +5,7 @@ import (
 
 	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/certificate/csr"
 
@@ -177,7 +178,8 @@ cD0UL3P0hRdXiCerOM6zPJvjja7jAka9UogHsG+23e96hyw/c/NmQt2dsgNjTern
 func Test_authorizeCSR(t *testing.T) {
 	type args struct {
 		machines []machinev1beta1.Machine
-		nodes    corev1client.NodeInterface
+		nodeName string
+		nodeErr  error
 		req      *certificatesv1beta1.CertificateSigningRequest
 		csr      string
 	}
@@ -1055,8 +1057,9 @@ func Test_authorizeCSR(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			nodes := &testNode{t: t, name: tt.args.nodeName, err: tt.args.nodeErr}
 
-			if err := authorizeCSR(tt.args.machines, tt.args.nodes, tt.args.req, parsedCSR); errString(err) != tt.wantErr {
+			if err := authorizeCSR(tt.args.machines, nodes, tt.args.req, parsedCSR); errString(err) != tt.wantErr {
 				t.Errorf("authorizeCSR() error = %v, wantErr %s", err, tt.wantErr)
 			}
 		})
@@ -1072,4 +1075,21 @@ func errString(err error) string {
 		panic("invalid error")
 	}
 	return errStr
+}
+
+type testNode struct {
+	corev1client.NodeInterface // panic if anything other than Get is called
+
+	t *testing.T
+
+	name string
+	err  error
+}
+
+func (n *testNode) Get(name string, _ metav1.GetOptions) (*corev1.Node, error) {
+	if name != n.name {
+		n.t.Errorf("Get() name = %s, want %s", name, n.name)
+	}
+
+	return nil, n.err
 }
