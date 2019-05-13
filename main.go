@@ -102,15 +102,13 @@ func (c *Controller) handleNewCSR(key string) error {
 	// is dependent on the actual instance, to detect that a CSR was recreated with the same name
 	glog.Infof("CSR %s added", csr.Name)
 
-	var alreadyApproved bool
-	for _, c := range csr.Status.Conditions {
-		if c.Type == certificatesv1beta1.CertificateApproved {
-			alreadyApproved = true
-			break
-		}
-	}
-	if alreadyApproved {
+	if isApproved(csr) {
 		glog.Infof("CSR %s is already approved", csr.Name)
+		return nil
+	}
+
+	if pending := recentlyPendingCSRs(c.indexer); pending > maxPendingCSRs {
+		glog.Infof("ignoring all CSRs as too many recent pending CSRs seen: %d", pending)
 		return nil
 	}
 

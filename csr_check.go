@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
 )
@@ -21,13 +22,16 @@ const (
 	nodeGroup      = "system:nodes"
 	nodeUserPrefix = nodeUser + ":"
 
+	maxPendingDelta = time.Hour
+	maxPendingCSRs  = 100
+
 	nodeBootstrapperUsername = "system:serviceaccount:openshift-machine-config-operator:node-bootstrapper"
 
-	maxMachineDelta = 10 * time.Minute
+	maxMachineClockSkew = 10 * time.Second
+	maxMachineDelta     = 10 * time.Minute
 
-	machineRoleKey       = "machine.openshift.io/cluster-api-machine-role"
-	machineTypeKey       = "machine.openshift.io/cluster-api-machine-type"
-	machineRoleTypeValue = "worker"
+	machineCSRAutoApproveKey   = "machine.openshift.io/csr-auto-approver"
+	machineCSRAutoApproveValue = "cluster-machine-approver"
 )
 
 var nodeBootstrapperGroups = sets.NewString(
@@ -103,9 +107,21 @@ func validateCSRContents(req *certificatesv1beta1.CertificateSigningRequest, csr
 	return nodeAsking, nil
 }
 
-// authorizeCSR authorizes the CertificateSigningRequest req for a node's server certificate.
-// csr should be the parsed CSR from req.Spec.Request. Names contained in the CSR are checked against addresses in the
-// corresponding node's machine status.
+// authorizeCSR authorizes the CertificateSigningRequest req for a node's client or server certificate.
+// csr should be the parsed CSR from req.Spec.Request.
+//
+// For client certificates:
+// The only information contained in the CSR is the future name of the node.  Thus we perform a best effort check:
+//
+// 1. User is the node bootstrapper
+// 2. Node does not exist
+// 3. Use machine API internal DNS to locate matching machine based on node name
+// 4. Machine must not have a node ref
+// 5. Machine must opt-in to CSR auto approve via label
+// 6. CSR creation timestamp is very close to machine creation timestamp
+//
+// For server certificates:
+// Names contained in the CSR are checked against addresses in the corresponding node's machine status.
 func authorizeCSR(machines []v1beta1.Machine, nodes corev1client.NodeInterface, req *certificatesv1beta1.CertificateSigningRequest, csr *x509.CertificateRequest) error {
 	if len(machines) == 0 || req == nil || csr == nil {
 		return fmt.Errorf("Invalid request")
@@ -210,11 +226,11 @@ func authorizeNodeClientCSR(machines []v1beta1.Machine, nodes corev1client.NodeI
 		return fmt.Errorf("machine for node %s already has node ref", nodeName)
 	}
 
-	if !isWorkerMachine(nodeMachine) {
-		return fmt.Errorf("machine for node %s is not a worker", nodeName)
+	if !machineWantsCSRAutoApprove(nodeMachine) {
+		return fmt.Errorf("machine for node %s is not configured for CSR auto approval", nodeName)
 	}
 
-	start := nodeMachine.CreationTimestamp.Add(-maxMachineDelta) // TODO maybe this should be really small to account only for clock drift
+	start := nodeMachine.CreationTimestamp.Add(-maxMachineClockSkew)
 	end := nodeMachine.CreationTimestamp.Add(maxMachineDelta)
 	if !inTimeSpan(start, end, req.CreationTimestamp.Time) {
 		return fmt.Errorf("CSR %s creation time %s not in range (%s, %s)", req.Name, req.CreationTimestamp.Time, start, end)
@@ -247,10 +263,43 @@ func findMatchingMachineFromInternalDNS(nodeName string, machines []v1beta1.Mach
 	return v1beta1.Machine{}, false
 }
 
-func isWorkerMachine(machine v1beta1.Machine) bool {
-	return machine.Labels[machineRoleKey] == machineRoleTypeValue && machine.Labels[machineTypeKey] == machineRoleTypeValue
+func machineWantsCSRAutoApprove(machine v1beta1.Machine) bool {
+	return machine.Labels[machineCSRAutoApproveKey] == machineCSRAutoApproveValue
 }
 
 func inTimeSpan(start, end, check time.Time) bool {
 	return check.After(start) && check.Before(end)
+}
+
+func isApproved(csr *certificatesv1beta1.CertificateSigningRequest) bool {
+	for _, condition := range csr.Status.Conditions {
+		if condition.Type == certificatesv1beta1.CertificateApproved {
+			return true
+		}
+	}
+	return false
+}
+
+func recentlyPendingCSRs(indexer cache.Indexer) int {
+	// assumes we are scheduled on the master meaning our clock is the same
+	now := time.Now()
+	start := now.Add(-maxPendingDelta)
+	end := now.Add(maxMachineClockSkew)
+
+	var pending int
+
+	for _, item := range indexer.List() {
+		csr := item.(*certificatesv1beta1.CertificateSigningRequest)
+
+		// ignore "old" CSRs
+		if !inTimeSpan(start, end, csr.CreationTimestamp.Time) {
+			continue
+		}
+
+		if !isApproved(csr) {
+			pending++
+		}
+	}
+
+	return pending
 }

@@ -1182,8 +1182,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1198,8 +1197,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1240,8 +1238,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1282,8 +1279,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1324,8 +1320,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1361,14 +1356,94 @@ func Test_authorizeCSR(t *testing.T) {
 			wantErr: "Doesn't match expected prefix",
 		},
 		{
+			name: "client good but wrong usage",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
+							},
+						},
+						Status: machinev1beta1.MachineStatus{
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "panda",
+								},
+							},
+						},
+					},
+				},
+				nodeName: "panda",
+				nodeErr:  errors.NewNotFound(schema.GroupResource{}, ""),
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageDigitalSignature,
+							certificatesv1beta1.UsageServerAuth,
+						},
+						Username: "system:serviceaccount:openshift-machine-config-operator:node-bootstrapper",
+						Groups: []string{
+							"system:authenticated",
+							"system:serviceaccounts:openshift-machine-config-operator",
+							"system:serviceaccounts",
+						},
+					},
+				},
+				csr: clientGood,
+			},
+			wantErr: "Doesn't match expected prefix",
+		},
+		{
+			name: "client good but missing usage",
+			args: args{
+				machines: []machinev1beta1.Machine{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
+							},
+						},
+						Status: machinev1beta1.MachineStatus{
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeInternalDNS,
+									Address: "panda",
+								},
+							},
+						},
+					},
+				},
+				nodeName: "panda",
+				nodeErr:  errors.NewNotFound(schema.GroupResource{}, ""),
+				req: &certificatesv1beta1.CertificateSigningRequest{
+					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
+						Usages: []certificatesv1beta1.KeyUsage{
+							certificatesv1beta1.UsageKeyEncipherment,
+							certificatesv1beta1.UsageClientAuth,
+						},
+						Username: "system:serviceaccount:openshift-machine-config-operator:node-bootstrapper",
+						Groups: []string{
+							"system:authenticated",
+							"system:serviceaccounts:openshift-machine-config-operator",
+							"system:serviceaccounts",
+						},
+					},
+				},
+				csr: clientGood,
+			},
+			wantErr: "Doesn't match expected prefix",
+		},
+		{
 			name: "client good but wrong CN",
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1409,8 +1484,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1452,8 +1526,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1496,8 +1569,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1539,8 +1611,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1581,8 +1652,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1623,8 +1693,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1665,8 +1734,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1702,14 +1770,13 @@ func Test_authorizeCSR(t *testing.T) {
 			wantErr: "machine for node panda already has node ref",
 		},
 		{
-			name: "client good but machine is not a worker",
+			name: "client good but machine does not want auto approval",
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1724,8 +1791,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "lazy",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "someone-else",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1757,7 +1823,7 @@ func Test_authorizeCSR(t *testing.T) {
 				},
 				csr: clientGood,
 			},
-			wantErr: "machine for node panda is not a worker",
+			wantErr: "machine for node panda is not configured for CSR auto approval",
 		},
 		{
 			name: "client good with proper timing",
@@ -1766,8 +1832,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1781,10 +1846,9 @@ func Test_authorizeCSR(t *testing.T) {
 					},
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							CreationTimestamp: creationTimestamp(2),
+							CreationTimestamp: creationTimestamp(2 * time.Minute),
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1802,7 +1866,7 @@ func Test_authorizeCSR(t *testing.T) {
 				req: &certificatesv1beta1.CertificateSigningRequest{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:              "pink",
-						CreationTimestamp: creationTimestamp(10),
+						CreationTimestamp: creationTimestamp(10 * time.Minute),
 					},
 					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
 						Usages: []certificatesv1beta1.KeyUsage{
@@ -1829,8 +1893,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1844,10 +1907,9 @@ func Test_authorizeCSR(t *testing.T) {
 					},
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							CreationTimestamp: creationTimestamp(3),
+							CreationTimestamp: creationTimestamp(3 * time.Minute),
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1865,7 +1927,7 @@ func Test_authorizeCSR(t *testing.T) {
 				req: &certificatesv1beta1.CertificateSigningRequest{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:              "pink",
-						CreationTimestamp: creationTimestamp(-6),
+						CreationTimestamp: creationTimestamp(2*time.Minute + 51*time.Second),
 					},
 					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
 						Usages: []certificatesv1beta1.KeyUsage{
@@ -1892,8 +1954,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1907,10 +1968,9 @@ func Test_authorizeCSR(t *testing.T) {
 					},
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							CreationTimestamp: creationTimestamp(3),
+							CreationTimestamp: creationTimestamp(3 * time.Minute),
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1928,7 +1988,7 @@ func Test_authorizeCSR(t *testing.T) {
 				req: &certificatesv1beta1.CertificateSigningRequest{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:              "purple",
-						CreationTimestamp: creationTimestamp(-14),
+						CreationTimestamp: creationTimestamp(2 * time.Minute),
 					},
 					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
 						Usages: []certificatesv1beta1.KeyUsage{
@@ -1946,7 +2006,7 @@ func Test_authorizeCSR(t *testing.T) {
 				},
 				csr: clientGood,
 			},
-			wantErr: "CSR purple creation time 2000-01-01 02:16:00 +0000 UTC not in range (2000-01-01 02:23:00 +0000 UTC, 2000-01-01 02:43:00 +0000 UTC)",
+			wantErr: "CSR purple creation time 2000-01-01 02:32:00 +0000 UTC not in range (2000-01-01 02:32:50 +0000 UTC, 2000-01-01 02:43:00 +0000 UTC)",
 		},
 		{
 			name: "client good but CSR too late",
@@ -1955,8 +2015,7 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1970,10 +2029,9 @@ func Test_authorizeCSR(t *testing.T) {
 					},
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							CreationTimestamp: creationTimestamp(3),
+							CreationTimestamp: creationTimestamp(3 * time.Minute),
 							Labels: map[string]string{
-								"machine.openshift.io/cluster-api-machine-role": "worker",
-								"machine.openshift.io/cluster-api-machine-type": "worker",
+								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
 							},
 						},
 						Status: machinev1beta1.MachineStatus{
@@ -1991,7 +2049,7 @@ func Test_authorizeCSR(t *testing.T) {
 				req: &certificatesv1beta1.CertificateSigningRequest{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:              "red",
-						CreationTimestamp: creationTimestamp(15),
+						CreationTimestamp: creationTimestamp(15 * time.Minute),
 					},
 					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
 						Usages: []certificatesv1beta1.KeyUsage{
@@ -2009,7 +2067,7 @@ func Test_authorizeCSR(t *testing.T) {
 				},
 				csr: clientGood,
 			},
-			wantErr: "CSR red creation time 2000-01-01 02:45:00 +0000 UTC not in range (2000-01-01 02:23:00 +0000 UTC, 2000-01-01 02:43:00 +0000 UTC)",
+			wantErr: "CSR red creation time 2000-01-01 02:45:00 +0000 UTC not in range (2000-01-01 02:32:50 +0000 UTC, 2000-01-01 02:43:00 +0000 UTC)",
 		},
 	}
 	for _, tt := range tests {
@@ -2039,8 +2097,8 @@ func errString(err error) string {
 	return errStr
 }
 
-func creationTimestamp(deltaMin int) metav1.Time {
-	return metav1.Date(2000, time.January, 1, 2, 30+deltaMin, 0, 0, time.UTC)
+func creationTimestamp(delta time.Duration) metav1.Time {
+	return metav1.NewTime(time.Date(2000, time.January, 1, 2, 30, 0, 0, time.UTC).Add(delta))
 }
 
 type testNode struct {
