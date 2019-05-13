@@ -119,6 +119,7 @@ func validateCSRContents(req *certificatesv1beta1.CertificateSigningRequest, csr
 // 4. Machine must not have a node ref
 // 5. Machine must opt-in to CSR auto approve via label
 // 6. CSR creation timestamp is very close to machine creation timestamp
+// 7. CSR is meant for node client auth based on usage, CN, etc
 //
 // For server certificates:
 // Names contained in the CSR are checked against addresses in the corresponding node's machine status.
