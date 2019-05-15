@@ -19,6 +19,9 @@ type NodeClientCert struct {
 
 func loadConfig(cliConfig string) ClusterMachineApproverConfig {
 	config := ClusterMachineApproverConfig{}
+	defer func() {
+		glog.Infof("machine approver config: %+v", config)
+	}()
 
 	if len(cliConfig) == 0 {
 		glog.Info("using default as no cli config specified")
