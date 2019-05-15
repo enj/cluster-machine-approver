@@ -302,6 +302,7 @@ rj/Dkdwyag==
 
 func Test_authorizeCSR(t *testing.T) {
 	type args struct {
+		config   ClusterMachineApproverConfig
 		machines []machinev1beta1.Machine
 		nodeName string
 		nodeErr  error
@@ -1180,11 +1181,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1195,11 +1191,6 @@ func Test_authorizeCSR(t *testing.T) {
 						},
 					},
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1236,11 +1227,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1277,11 +1263,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1318,11 +1299,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1360,11 +1336,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1401,11 +1372,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1441,11 +1407,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1482,11 +1443,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1524,11 +1480,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1567,11 +1518,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1609,11 +1555,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1650,11 +1591,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1691,11 +1627,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1732,11 +1663,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							NodeRef: &corev1.ObjectReference{Name: "other"},
 							Addresses: []corev1.NodeAddress{
@@ -1770,15 +1696,15 @@ func Test_authorizeCSR(t *testing.T) {
 			wantErr: "machine for node panda already has node ref",
 		},
 		{
-			name: "client good but machine does not want auto approval",
+			name: "client good but auto approval is disabled",
 			args: args{
+				config: ClusterMachineApproverConfig{
+					NodeClientCert: NodeClientCert{
+						Disabled: true,
+					},
+				},
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1789,11 +1715,6 @@ func Test_authorizeCSR(t *testing.T) {
 						},
 					},
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "someone-else",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1807,6 +1728,7 @@ func Test_authorizeCSR(t *testing.T) {
 				nodeName: "panda",
 				nodeErr:  errors.NewNotFound(schema.GroupResource{}, ""),
 				req: &certificatesv1beta1.CertificateSigningRequest{
+					ObjectMeta: metav1.ObjectMeta{Name: "orange"},
 					Spec: certificatesv1beta1.CertificateSigningRequestSpec{
 						Usages: []certificatesv1beta1.KeyUsage{
 							certificatesv1beta1.UsageKeyEncipherment,
@@ -1823,18 +1745,13 @@ func Test_authorizeCSR(t *testing.T) {
 				},
 				csr: clientGood,
 			},
-			wantErr: "machine for node panda is not configured for CSR auto approval",
+			wantErr: "CSR orange for node client cert rejected as the flow is disabled",
 		},
 		{
 			name: "client good with proper timing",
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1847,9 +1764,6 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							CreationTimestamp: creationTimestamp(2 * time.Minute),
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
 						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
@@ -1891,11 +1805,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1908,9 +1817,6 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							CreationTimestamp: creationTimestamp(3 * time.Minute),
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
 						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
@@ -1952,11 +1858,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -1969,9 +1870,6 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							CreationTimestamp: creationTimestamp(3 * time.Minute),
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
 						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
@@ -2013,11 +1911,6 @@ func Test_authorizeCSR(t *testing.T) {
 			args: args{
 				machines: []machinev1beta1.Machine{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
-						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
 								{
@@ -2030,9 +1923,6 @@ func Test_authorizeCSR(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							CreationTimestamp: creationTimestamp(3 * time.Minute),
-							Labels: map[string]string{
-								"machine.openshift.io/csr-auto-approver": "cluster-machine-approver",
-							},
 						},
 						Status: machinev1beta1.MachineStatus{
 							Addresses: []corev1.NodeAddress{
@@ -2079,7 +1969,7 @@ func Test_authorizeCSR(t *testing.T) {
 			}
 			nodes := &testNode{t: t, name: tt.args.nodeName, err: tt.args.nodeErr}
 
-			if err := authorizeCSR(tt.args.machines, nodes, tt.args.req, parsedCSR); errString(err) != tt.wantErr {
+			if err := authorizeCSR(tt.args.config, tt.args.machines, nodes, tt.args.req, parsedCSR); errString(err) != tt.wantErr {
 				t.Errorf("authorizeCSR() error = %v, wantErr %s", err, tt.wantErr)
 			}
 		})

@@ -44,6 +44,8 @@ import (
 const machineAPINamespace = "openshift-machine-api"
 
 type Controller struct {
+	config ClusterMachineApproverConfig
+
 	csrs     certificatesv1beta1client.CertificateSigningRequestInterface
 	nodes    corev1client.NodeInterface
 	machines machinev1beta1client.MachineInterface
@@ -53,8 +55,10 @@ type Controller struct {
 	informer cache.Controller
 }
 
-func NewController(clientset *kubernetes.Clientset, machineClientset *mapiclient.Clientset, queue workqueue.RateLimitingInterface, indexer cache.Indexer, informer cache.Controller) *Controller {
+func NewController(config ClusterMachineApproverConfig, clientset *kubernetes.Clientset, machineClientset *mapiclient.Clientset, queue workqueue.RateLimitingInterface, indexer cache.Indexer, informer cache.Controller) *Controller {
 	return &Controller{
+		config: config,
+
 		csrs:     clientset.CertificatesV1beta1().CertificateSigningRequests(),
 		nodes:    clientset.CoreV1().Nodes(),
 		machines: machineClientset.MachineV1beta1().Machines(machineAPINamespace),
@@ -123,7 +127,7 @@ func (c *Controller) handleNewCSR(key string) error {
 		return fmt.Errorf("failed to list machines: %v", err)
 	}
 
-	if err := authorizeCSR(machines.Items, c.nodes, csr, parsedCSR); err != nil {
+	if err := authorizeCSR(c.config, machines.Items, c.nodes, csr, parsedCSR); err != nil {
 		// Don't deny since it might be someone else's CSR
 		glog.Infof("CSR %s not authorized: %v", csr.Name, err)
 		return err
@@ -199,11 +203,15 @@ func (c *Controller) runWorker() {
 }
 
 func main() {
-	var kubeconfig string
-	var master string
+	var (
+		kubeconfig string
+		master     string
+		cliConfig  string
+	)
 
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
 	flag.StringVar(&master, "master", "", "master url")
+	flag.StringVar(&cliConfig, "config", "", "CLI config")
 	flag.Parse()
 
 	// creates the connection
@@ -242,7 +250,7 @@ func main() {
 		},
 	}, cache.Indexers{})
 
-	controller := NewController(client, machineClient, queue, indexer, informer)
+	controller := NewController(loadConfig(cliConfig), client, machineClient, queue, indexer, informer)
 
 	// Now let's start the controller
 	stop := make(chan struct{})

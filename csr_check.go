@@ -29,9 +29,6 @@ const (
 
 	maxMachineClockSkew = 10 * time.Second
 	maxMachineDelta     = 10 * time.Minute
-
-	machineCSRAutoApproveKey   = "machine.openshift.io/csr-auto-approver"
-	machineCSRAutoApproveValue = "cluster-machine-approver"
 )
 
 var nodeBootstrapperGroups = sets.NewString(
@@ -110,26 +107,25 @@ func validateCSRContents(req *certificatesv1beta1.CertificateSigningRequest, csr
 // authorizeCSR authorizes the CertificateSigningRequest req for a node's client or server certificate.
 // csr should be the parsed CSR from req.Spec.Request.
 //
-// For client certificates:
+// For client certificates, when the flow is not globally disabled:
 // The only information contained in the CSR is the future name of the node.  Thus we perform a best effort check:
 //
 // 1. User is the node bootstrapper
 // 2. Node does not exist
 // 3. Use machine API internal DNS to locate matching machine based on node name
 // 4. Machine must not have a node ref
-// 5. Machine must opt-in to CSR auto approve via label
-// 6. CSR creation timestamp is very close to machine creation timestamp
-// 7. CSR is meant for node client auth based on usage, CN, etc
+// 5. CSR creation timestamp is very close to machine creation timestamp
+// 6. CSR is meant for node client auth based on usage, CN, etc
 //
 // For server certificates:
 // Names contained in the CSR are checked against addresses in the corresponding node's machine status.
-func authorizeCSR(machines []v1beta1.Machine, nodes corev1client.NodeInterface, req *certificatesv1beta1.CertificateSigningRequest, csr *x509.CertificateRequest) error {
+func authorizeCSR(config ClusterMachineApproverConfig, machines []v1beta1.Machine, nodes corev1client.NodeInterface, req *certificatesv1beta1.CertificateSigningRequest, csr *x509.CertificateRequest) error {
 	if len(machines) == 0 || req == nil || csr == nil {
 		return fmt.Errorf("Invalid request")
 	}
 
 	if isNodeClientCert(req, csr) {
-		return authorizeNodeClientCSR(machines, nodes, req, csr)
+		return authorizeNodeClientCSR(config, machines, nodes, req, csr)
 	}
 
 	// node serving cert validation after this point
@@ -198,7 +194,11 @@ func authorizeCSR(machines []v1beta1.Machine, nodes corev1client.NodeInterface, 
 	return nil
 }
 
-func authorizeNodeClientCSR(machines []v1beta1.Machine, nodes corev1client.NodeInterface, req *certificatesv1beta1.CertificateSigningRequest, csr *x509.CertificateRequest) error {
+func authorizeNodeClientCSR(config ClusterMachineApproverConfig, machines []v1beta1.Machine, nodes corev1client.NodeInterface, req *certificatesv1beta1.CertificateSigningRequest, csr *x509.CertificateRequest) error {
+	if config.NodeClientCert.Disabled {
+		return fmt.Errorf("CSR %s for node client cert rejected as the flow is disabled", req.Name)
+	}
+
 	if !isReqFromNodeBootstrapper(req) {
 		return fmt.Errorf("CSR %s for node client cert has wrong user", req.Name)
 	}
@@ -225,10 +225,6 @@ func authorizeNodeClientCSR(machines []v1beta1.Machine, nodes corev1client.NodeI
 
 	if nodeMachine.Status.NodeRef != nil {
 		return fmt.Errorf("machine for node %s already has node ref", nodeName)
-	}
-
-	if !machineWantsCSRAutoApprove(nodeMachine) {
-		return fmt.Errorf("machine for node %s is not configured for CSR auto approval", nodeName)
 	}
 
 	start := nodeMachine.CreationTimestamp.Add(-maxMachineClockSkew)
@@ -262,10 +258,6 @@ func findMatchingMachineFromInternalDNS(nodeName string, machines []v1beta1.Mach
 		}
 	}
 	return v1beta1.Machine{}, false
-}
-
-func machineWantsCSRAutoApprove(machine v1beta1.Machine) bool {
-	return machine.Labels[machineCSRAutoApproveKey] == machineCSRAutoApproveValue
 }
 
 func inTimeSpan(start, end, check time.Time) bool {
